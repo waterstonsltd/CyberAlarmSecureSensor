@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: cyberalarm-securesensor
+  IMAGE_NAME: waterstonsltd/cyberalarm-securesensor
 
 jobs:
   release:
