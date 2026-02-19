@@ -6,7 +6,6 @@ on:
       - 'v*.*.*'
 
 env:
-env:
   REGISTRY: ghcr.io
   IMAGE_NAME: cyberalarm-securesensor
 
