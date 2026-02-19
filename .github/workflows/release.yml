@@ -38,14 +38,22 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha
 
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+    
       - name: Build and push Docker image
         id: build
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./src/CyberAlarm.SyslogRelay.ConsoleApp/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_NUMBER=${{ steps.version.outputs.VERSION }}
+            STATUS_ENDPOINT=https://api-ci-cyberalarm.waterstons.win/api/v1/SyslogRelayStatus
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3
