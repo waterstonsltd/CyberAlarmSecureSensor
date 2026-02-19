@@ -1,0 +1,33 @@
+services:
+  syslog-relay:
+    image: npccprdcontainersukacr.azurecr.io/syslog-relay:latest
+    container_name: syslog-relay
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 2g
+    mem_reservation: 1g
+    cpus: 1
+    pids_limit: 100
+    volumes:
+      - syslog:/var/lib/syslog-relay:rw
+    ports:
+      - 514:514/udp
+      - 514:514/tcp
+    environment:
+      - REGISTRATION_TOKEN=${REGISTRATION_TOKEN}
+      - StatusEndpoint=${STATUS_ENDPOINT:-https://api-uat-cyberalarm.waterstons.win/api/v1/SyslogRelayStatus}
+      - LOGGING__LOGLEVEL__DEFAULT=${LOG_LEVEL:-Information}
+      - MaximumTcpClients=${MAX_TCP_CLIENTS:-50}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  syslog:
+    name: cyberalarm-syslog
