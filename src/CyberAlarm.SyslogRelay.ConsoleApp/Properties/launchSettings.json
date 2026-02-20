@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "CyberAlarm.SyslogRelay.ConsoleApp": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker",
+      "containerRunArguments": "--env-file .env -v C:\\ProgramData\\syslog-relay:/var/lib/syslog-relay -p 514:514"
+    }
+  }
+}
