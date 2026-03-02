@@ -1,0 +1,73 @@
+﻿using System.Security.Cryptography;
+
+namespace CyberAlarm.EventBundler.Tests;
+
+internal sealed class Variables
+{
+    private static string _private4096KeyPem = @"-----BEGIN PRIVATE KEY-----
+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
+6Ep94UQZvEbcjhQVD6q/hlfsLplKwg==
+-----END PRIVATE KEY-----";
+    /// <summary>
+    /// Exported from the above key using this in linux `openssl rsa -in public_key.pem -pubin -outform DER | openssl dgst -sha256 -hex`
+    /// </summary>
+    public static string HexThumbprint = "3cb7b0f512f565bba0a93bca311adde20e020d920e755f90971bbb2e70237cf4";
+
+    public static RSA Key4096
+    {
+        get
+        {
+            var rsa = RSA.Create();
+            rsa.ImportFromPem(_private4096KeyPem.ToCharArray());
+            return rsa;
+        }
+    }
+}
