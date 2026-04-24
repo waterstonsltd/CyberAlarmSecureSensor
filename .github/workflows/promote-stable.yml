@@ -1,0 +1,69 @@
+name: Promote to Stable
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to promote to stable (e.g. 1.2.3)'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: waterstonsltd/cyberalarm-securesensor
+  VERSION: ${{ inputs.version }}
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment: stable
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Validate version format
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version format: '$VERSION' — expected x.y.z"
+            exit 1
+          fi
+          echo "Version format valid: $VERSION ✓"
+          
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate version exists in registry
+        run: |
+          if ! ERROR=$(docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$VERSION 2>&1); then
+            echo "Error: Version $VERSION does not exist in the registry"
+            echo "Details: $ERROR"
+            exit 1
+          fi
+          echo "Version $VERSION found in registry ✓"
+          
+      - name: Promote version to stable
+        run: |
+          docker buildx imagetools create \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:stable \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$VERSION
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign the stable tag
+        run: |
+          cosign sign --yes \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:stable
+
+      - name: Dispatch webhook event
+        if: vars.VERSION_UPDATE_WEBHOOK_URL != ''
+        run: |
+          curl -X POST ${{ vars.VERSION_UPDATE_WEBHOOK_URL }}?code=${{ secrets.VERSION_UPDATE_WEBHOOK_CODE }} \
+            -H "Accept: application/json" \
+            -d "{\"event_type\": \"new-stable-version-created\", \"version\": \"$VERSION\"}"

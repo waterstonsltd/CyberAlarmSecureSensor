@@ -1,0 +1,9 @@
+{
+  "name": "Barracuda CloudGen (IPS)",
+  "priority": 95,
+  "parserClass": "BarracudaCgfThreatParser",
+  "parserConfig": null,
+  "rules": [
+    { "type": "ContainsAll", "values": [ "box_Firewall_threat:", "[Request]" ] }
+  ]
+}
