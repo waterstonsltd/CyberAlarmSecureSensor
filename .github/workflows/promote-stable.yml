@@ -1,0 +1,175 @@
+name: Promote to Stable
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to promote to stable (e.g. 1.2.3)'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: waterstonsltd/cyberalarm-securesensor
+  VERSION: ${{ inputs.version }}
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment: stable
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Validate version format
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version format: '$VERSION' — expected x.y.z"
+            exit 1
+          fi
+          echo "Version format valid: $VERSION ✓"
+          
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate version exists in registry
+        run: |
+          if ! ERROR=$(docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$VERSION 2>&1); then
+            echo "Error: Version $VERSION does not exist in the registry"
+            echo "Details: $ERROR"
+            exit 1
+          fi
+          echo "Version $VERSION found in registry ✓"
+          
+      - name: Promote version to stable
+        run: |
+          docker buildx imagetools create \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:stable \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$VERSION
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign the stable tag
+        run: |
+          cosign sign --yes \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:stable
+
+      - name: Dispatch webhook event
+        if: vars.VERSION_UPDATE_WEBHOOK_URL != ''
+        run: |
+          curl -X POST ${{ vars.VERSION_UPDATE_WEBHOOK_URL }}?code=${{ secrets.VERSION_UPDATE_WEBHOOK_CODE }} \
+            -H "Accept: application/json" \
+            -d "{\"event_type\": \"new-stable-version-created\", \"version\": \"$VERSION\"}"
+
+  windows-release:
+    needs: promote
+    runs-on: windows-latest
+    environment: stable
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout promoted tag
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ inputs.version }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish Windows app
+        shell: pwsh
+        run: |
+          dotnet publish src/CyberAlarm.SyslogRelay.ConsoleApp/CyberAlarm.SyslogRelay.ConsoleApp.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -o publish/win-x64 `
+            /p:Version=${env:VERSION} `
+            /p:AssemblyVersion=${env:VERSION} `
+            /p:FileVersion=${env:VERSION}
+
+      - name: Install Velopack CLI
+        shell: pwsh
+        run: dotnet tool install --global vpk --version 0.0.1298
+
+      # - name: Sign published executables (Azure Trusted Signing)
+      #   # Sign the exe files BEFORE packing so the binaries inside the nupkg/MSI are signed.
+      #   uses: azure/trusted-signing-action@v0
+      #   with:
+      #     azure-tenant-id: ${{ secrets.SIGNING_TENANT_ID }}
+      #     azure-client-id: ${{ secrets.SIGNING_CLIENT_ID }}
+      #     azure-client-secret: ${{ secrets.SIGNING_CLIENT_SECRET }}
+      #     endpoint: https://eus.codesigning.azure.net/
+      #     trusted-signing-account-name: your-account-name
+      #     certificate-profile-name: your-profile-name
+      #     files-folder: publish/win-x64
+      #     files-folder-filter: exe
+      #     timestamp-rfc3161: http://timestamp.acs.microsoft.com
+      #     timestamp-digest: SHA256
+      #     file-digest: SHA256
+
+      - name: Pack Windows release
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
+          vpk pack `
+            --packId CyberAlarmSecureSensor `
+            --packVersion $env:VERSION `
+            --packDir publish/win-x64 `
+            --mainExe CyberAlarm.SyslogRelay.ConsoleApp.exe `
+            --packTitle "CyberAlarm Secure Sensor" `
+            --packAuthors "Waterstons Ltd" `
+            --msiDeploymentTool `
+            --noPortable `
+            -o releases
+          # When Azure Trusted Signing is enabled, replace the pack step above with this
+          # to have Velopack sign the Setup.exe and MSI it generates during pack:
+          #
+          # vpk pack `
+          #   --packId CyberAlarmSecureSensor `
+          #   --packVersion $env:VERSION `
+          #   --packDir publish/win-x64 `
+          #   --mainExe CyberAlarm.SyslogRelay.ConsoleApp.exe `
+          #   --packTitle "CyberAlarm Secure Sensor" `
+          #   --packAuthors "Waterstons Ltd" `
+          #   --msiDeploymentTool `
+          #   --noPortable `
+          #   --signTemplate "AzureSignTool sign -kvu https://your-keyvault.vault.azure.net -kvi ${{ secrets.SIGNING_CLIENT_ID }} -kvt ${{ secrets.SIGNING_TENANT_ID }} -kvs ${{ secrets.SIGNING_CLIENT_SECRET }} -kvc your-cert-name -tr http://timestamp.acs.microsoft.com -td sha256 {{file}}" `
+          #   -o releases
+
+      - name: Create or update GitHub release
+        shell: pwsh
+        run: |
+          gh release view "v$env:VERSION" *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create "v$env:VERSION" --title "CyberAlarm Secure Sensor v$env:VERSION" --notes "Stable release v$env:VERSION"
+          }
+          gh release upload "v$env:VERSION" releases\* --clobber
+
+      - name: Generate checksums and upload
+        shell: pwsh
+        run: |
+          $installers = Get-ChildItem releases -Include '*-Setup.exe', '*-DeploymentTool.msi' -File
+          if ($installers.Count -eq 0) {
+            throw 'No Windows installer assets were generated.'
+          }
+
+          $checksumPath = Join-Path $PWD 'releases\SHA256SUMS.txt'
+          $checksumLines = $installers | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant())  $($_.Name)"
+          }
+          Set-Content -Path $checksumPath -Value $checksumLines
+
+          gh release upload "v$env:VERSION" $checksumPath --clobber
