@@ -1,0 +1,15 @@
+{
+  "name": "Draytek",
+  "priority": 95,
+  "parserClass": "DraytekParser",
+  "parserConfig": null,
+  "rules": [
+    {
+      "type": "ContainsAll",
+      "values": [ "[FILTER][" ]
+    },
+    { "type": "ContainsAny", "values": [ "[Pass]", "[Block]", "[Drop]" ] },
+    { "type": "ContainsAll", "values": [ "[@S:R=" ] }
+  ],
+  "ignoreIfContaining": [ "[DHCP]" ]
+}
