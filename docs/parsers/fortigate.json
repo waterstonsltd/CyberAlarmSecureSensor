@@ -1,0 +1,84 @@
+{
+	"name": "Fortigate",
+	"priority": 95,
+	"parserClass": "KeyValueParser",
+	"parserConfig": {
+		"useRegex": true,
+		"sourceIpKeys": [
+			"srcip",
+			"srcip6"
+		],
+		"destinationIpKeys": [
+			"dstip",
+			"dstip6"
+		],
+		"sourcePortKeys": [
+			"srcport"
+		],
+		"destinationPortKeys": [
+			"dstport"
+		],
+		"protocolKeys": [
+			"proto"
+		],
+		"actionKeys": [
+			"action"
+		],
+		"allowActionValues": [
+			"accept",
+			"pass",
+			"passthrough",
+			"exempt"
+		],
+		"denyActionValues": [
+			"deny",
+			"blocked"
+		],
+		"dropActionValues": [],
+		"closeActionValues": [
+			"close"
+		],
+		"resetActionValues": [
+			"server-rst",
+			"client-rst"
+		],
+		"timeoutActionValues": [
+			"timeout"
+		],
+		"durationKeys": [
+			"duration"
+		],
+		"durationIsSeconds": true,
+		"sentBytesKeys": [
+			"sentbyte"
+		],
+		"receivedBytesKeys": [
+			"rcvdbyte"
+		],
+		"isSourcePortOptional": true,
+		"isDestinationPortOptional": true
+	},
+	"rules": [
+		{
+			"type": "ContainsAny",
+			"values": [
+				"logid=\"0",
+				"devname=",
+				"type=traffic"
+			]
+		},
+		{
+			"type": "MustNotContain",
+			"values": [
+				"CEF:",
+				"kernel:"
+			]
+		}
+	],
+	"ignoreIfContaining": [
+		"type=\"siem\"",
+		"type=\"securityevent\"",
+		"type=\"systemevent\"",
+		"type=\"event\""
+	]
+}
