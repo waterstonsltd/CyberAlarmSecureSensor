@@ -240,7 +240,7 @@ jobs:
           $ip = (Invoke-RestMethod https://api.ipify.org).Trim()
           echo "RUNNER_IP=$ip" >> $env:GITHUB_ENV
           az keyvault network-rule add `
-            --name ${{ secrets.SIGNING_KEYVAULT_NAME }} `
+            --name Waterstons-CodeSigning `
             --subscription ${{ secrets.SIGNING_SUBSCRIPTION_ID }} `
             --ip-address "$ip"
           Write-Host "Added $ip to Key Vault firewall, waiting for propagation..."
