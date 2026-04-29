@@ -232,7 +232,7 @@ jobs:
         with:
           client-id: ${{ secrets.SIGNING_CLIENT_ID }}
           tenant-id: ${{ secrets.SIGNING_TENANT_ID }}
-          subscription-id: ${{ secrets.SIGNING_SUBSCRIPTION_ID }}
+          subscription-id: 89ee8660-2a38-45f7-a4ab-eca3fbcf844b
 
       - name: Open Key Vault firewall for runner IP
         shell: pwsh
@@ -240,7 +240,8 @@ jobs:
           $ip = (Invoke-RestMethod https://api.ipify.org).Trim()
           echo "RUNNER_IP=$ip" >> $env:GITHUB_ENV
           az keyvault network-rule add `
-            --name ${{ secrets.SIGNING_KEYVAULT_NAME }} `
+            --name Waterstons-CodeSigning `
+            --subscription 89ee8660-2a38-45f7-a4ab-eca3fbcf844b `
             --ip-address "$ip"
           Write-Host "Added $ip to Key Vault firewall, waiting for propagation..."
           Start-Sleep -Seconds 10
