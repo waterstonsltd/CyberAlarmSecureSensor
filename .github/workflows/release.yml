@@ -1,0 +1,390 @@
+name: Release
+on:
+  push:
+    branches:
+      - main
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: waterstonsltd/cyberalarm-securesensor
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.flag.outputs.RELEASE }}
+    steps:
+      - name: Check for release flag
+        id: flag
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          if [[ "$COMMIT_MSG" == *"[release=True]"* ]]; then
+            echo "RELEASE=true" >> $GITHUB_OUTPUT
+            echo "Release flag found - proceeding"
+          else
+            echo "RELEASE=false" >> $GITHUB_OUTPUT
+            echo "No release flag - skipping"
+          fi
+
+  release:
+    needs: check
+    if: needs.check.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
+      tag: ${{ steps.version.outputs.TAG }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Extract version from commit message
+        id: version
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          VERSION=$(echo "$COMMIT_MSG" | grep -oP '(?<=$$version=)[0-9]+\.[0-9]+\.[0-9]+(?=$$)' || echo "")
+
+          if [ -z "$VERSION" ]; then
+            echo "No [version=x.y.z] in commit message - falling back to tag computation"
+            LATEST=$(git tag --list 'v*.*.*' --sort=-v:refname | head -n 1)
+            if [ -z "$LATEST" ]; then LATEST="v0.0.0"; fi
+            CURRENT="${LATEST#v}"
+            MAJOR=$(echo "$CURRENT" | cut -d. -f1)
+            MINOR=$(echo "$CURRENT" | cut -d. -f2)
+            PATCH=$(echo "$CURRENT" | cut -d. -f3)
+            NEXT_PATCH=$((PATCH + 1))
+            VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
+          fi
+
+          TAG="v${VERSION}"
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "TAG=${TAG}" >> $GITHUB_OUTPUT
+          echo "Release version: ${TAG}"
+
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          TAG="${{ steps.version.outputs.TAG }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists - skipping tag creation"
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+            echo "Created and pushed tag $TAG"
+          fi
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: |
+            latest=true
+          tags: |
+            type=semver,pattern={{version}},value=${{ steps.version.outputs.TAG }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.TAG }}
+            type=sha
+          labels: |
+            org.opencontainers.image.licenses=BUSL-1.1
+            org.opencontainers.image.vendor=Waterstons Ltd
+            org.opencontainers.image.title=CyberAlarm Secure Sensor
+            org.opencontainers.image.description=Secure syslog relay agent for CyberAlarm, providing encrypted cybersecurity telemetry collection for UK law enforcement.
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./src
+          file: ./src/CyberAlarm.SyslogRelay.ConsoleApp/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_NUMBER=${{ steps.version.outputs.VERSION }}
+            ApiBaseUrl=https://api.cyberalarm.police.uk
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image with Cosign (keyless)
+        run: |
+          cosign sign --yes \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+
+      - name: Generate SBOM with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          format: cyclonedx
+          output: sbom.cdx.json
+
+      # Dependency Tracker currently supports SBOM up to CycloneDX 1.6
+      - name: Waterstons Dependency Tracker
+        run: |
+          safe_version=$(printf '%s' "${{ steps.version.outputs.VERSION }}" | tr -cs 'A-Za-z0-9._-' '-' | sed 's/^-*//; s/-*$//')
+          curl -X POST ${{ secrets.DTRACK_URL }} \
+            -H "X-Api-Key: ${{ secrets.DTRACK_API_KEY }}" \
+            -F "autoCreate=true" \
+            -F "projectName=${{ github.event.repository.name }}" \
+            -F "projectVersion=${safe_version}" \
+            -F "parentName=${{ vars.DTRACK_SYSLOGRELAY_PARENT_PROJ }}" \
+            -F "projectTags=${{ vars.DTRACK_COMMON_TAGS }}" \
+            -F "bom=@sbom.cdx.json"
+
+      - name: Attach SBOM to image in registry
+        run: |
+          cosign attach sbom \
+            --sbom sbom.cdx.json \
+            --type cyclonedx \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+
+      - name: Sign the SBOM attestation
+        run: |
+          cosign attest --yes \
+            --predicate sbom.cdx.json \
+            --type cyclonedx \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+
+      - name: Prepare release notes
+        run: |
+          {
+            echo "## CyberAlarm SecureSensor ${{ steps.version.outputs.TAG }}"
+            echo ""
+            if [ -f "RELEASE_NOTES.md" ]; then
+              cat RELEASE_NOTES.md
+              echo ""
+            fi
+            echo "---"
+            echo ""
+            echo "## Container Image"
+            echo ""
+            echo "Pull the image from the **GitHub Container Registry**:"
+            echo '```bash'
+            echo "docker pull ghcr.io/waterstonsltd/cyberalarm-securesensor:${{ steps.version.outputs.VERSION }}"
+            echo '```'
+            echo ""
+            echo "**Digest:** \`${{ steps.build.outputs.digest }}\`"
+            echo ""
+            echo "---"
+            echo ""
+            echo "## Windows Installer"
+            echo ""
+            echo "Download \`CyberAlarmSecureSensor-${{ steps.version.outputs.VERSION }}-Setup.msi\` from the release assets below."
+            echo ""
+            echo "---"
+            echo ""
+            echo "## Supply Chain"
+            echo ""
+            echo "### Container Image"
+            echo ""
+            echo "This image is signed using [Sigstore Cosign](https://docs.sigstore.dev/) keyless signing and includes a CycloneDX SBOM attestation."
+            echo ""
+            echo "**Verify image signature:**"
+            echo '```bash'
+            echo "cosign verify \\"
+            echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com \\"
+            echo "  --certificate-identity-regexp github.com/waterstonsltd \\"
+            echo "  ghcr.io/waterstonsltd/cyberalarm-securesensor:${{ steps.version.outputs.VERSION }}"
+            echo '```'
+            echo ""
+            echo "**Verify SBOM attestation:**"
+            echo '```bash'
+            echo "cosign verify-attestation \\"
+            echo "  --type cyclonedx \\"
+            echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com \\"
+            echo "  --certificate-identity-regexp github.com/waterstonsltd \\"
+            echo "  ghcr.io/waterstonsltd/cyberalarm-securesensor:${{ steps.version.outputs.VERSION }}"
+            echo '```'
+            echo ""
+            echo "### Windows Installer"
+            echo ""
+            echo "All Windows release artefacts (MSI and executables) are Authenticode-signed using a code-signing certificate held in **Azure Key Vault**. The Windows SBOM is provided unsigned."
+            echo ""
+            echo "**Verify Authenticode signature (PowerShell):**"
+            echo '```powershell'
+            echo "Get-AuthenticodeSignature CyberAlarmSecureSensor-${{ steps.version.outputs.VERSION }}-Setup.msi | Select-Object -Property Status, SignerCertificate"
+            echo '```'
+            echo ""
+            echo "---"
+            echo ""
+            echo "## Release Artefacts"
+            echo ""
+            echo "| Artefact | Format | Description |"
+            echo "|----------|--------|-------------|"
+            echo "| \`sbom.cdx.json\` | CycloneDX | Container image Software Bill of Materials |"
+            echo "| \`sbom-windows.cdx.json\` | CycloneDX | Windows application Software Bill of Materials |"
+            echo "| \`CyberAlarmSecureSensor-${{ steps.version.outputs.VERSION }}-Setup.msi\` | MSI | Windows installer (Authenticode-signed) |"
+            echo ""
+            echo "---"
+            echo ""
+            echo "## Deployment"
+            echo ""
+            echo "See the [installation guide](https://github.com/waterstonsltd/CyberAlarmSecureSensor#installation) for deployment instructions."
+          } > release_body.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.TAG }}
+          body_path: release_body.md
+          prerelease: true
+          files: sbom.cdx.json
+
+  windows-release:
+    needs: release
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      VERSION: ${{ needs.release.outputs.version }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.SIGNING_CLIENT_ID }}
+          tenant-id: ${{ secrets.SIGNING_TENANT_ID }}
+          subscription-id: ${{ secrets.SIGNING_SUBSCRIPTION_ID }}
+
+      - name: Open Key Vault firewall for runner IP
+        shell: pwsh
+        run: |
+          $ip = (Invoke-RestMethod https://api.ipify.org).Trim()
+          echo "RUNNER_IP=$ip" >> $env:GITHUB_ENV
+          az keyvault network-rule add `
+            --name ${{ secrets.SIGNING_KEYVAULT_NAME }} `
+            --subscription ${{ secrets.SIGNING_SUBSCRIPTION_ID }} `
+            --ip-address "$ip"
+          Write-Host "Added $ip to Key Vault firewall, waiting for propagation..."
+          Start-Sleep -Seconds 10
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish Windows app
+        shell: pwsh
+        run: |
+          dotnet publish src/CyberAlarm.SyslogRelay.ConsoleApp/CyberAlarm.SyslogRelay.ConsoleApp.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -o publish/win-x64 `
+            /p:Version=${env:VERSION} `
+            /p:AssemblyVersion=${env:VERSION} `
+            /p:FileVersion=${env:VERSION}
+
+      - name: Install Velopack CLI
+        shell: pwsh
+        # Pinned to a known-good version for API and output format stability
+        run: dotnet tool install --global vpk --version 0.0.1298
+
+      - name: Install AzureSignTool
+        shell: pwsh
+        run: dotnet tool install --global AzureSignTool
+
+      - name: Pack Windows release
+        # --signTemplate signs all binaries Velopack generates during packing,
+        # including the stub launcher and main exe. The MSI is compiled after
+        # this pass so is signed explicitly in the step below.
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
+          vpk pack `
+            --packId CyberAlarmSecureSensor `
+            --packVersion $env:VERSION `
+            --packDir publish/win-x64 `
+            --mainExe CyberAlarm.SyslogRelay.ConsoleApp.exe `
+            --packTitle "CyberAlarm Secure Sensor" `
+            --packAuthors "Waterstons Ltd" `
+            --msiDeploymentTool `
+            --noPortable `
+            --signTemplate "AzureSignTool sign -kvu ${{ secrets.SIGNING_KEYVAULT_URL }} -kvc ${{ secrets.SIGNING_CERT_NAME }} -kvm -tr http://timestamp.acs.microsoft.com -td sha256 {{file}}" `
+            -o releases
+
+      - name: Sign Windows release artifacts
+        # Explicitly sign the MSI and any release executables after packing,
+        # as the MSI is compiled after Velopack's internal signing pass.
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
+          $filesToSign = Get-ChildItem releases\* -Include '*.msi', '*.exe' -File
+          foreach ($file in $filesToSign) {
+            AzureSignTool sign `
+              -kvu ${{ secrets.SIGNING_KEYVAULT_URL }} `
+              -kvc ${{ secrets.SIGNING_CERT_NAME }} `
+              -kvm `
+              -tr http://timestamp.acs.microsoft.com `
+              -td sha256 `
+              $file.FullName
+          }
+
+      - name: Install Trivy
+        shell: pwsh
+        run: |
+          # Pinned version - consistent with trivy-action@v0.36.0
+          $version = "0.70.0"
+          Invoke-WebRequest -Uri "https://github.com/aquasecurity/trivy/releases/download/v${version}/trivy_${version}_windows-64bit.zip" -OutFile trivy.zip
+          Expand-Archive trivy.zip -DestinationPath trivy-bin
+
+      - name: Generate SBOM with Trivy (Windows)
+        # Scan the source directory for a dependency-aware SBOM that captures
+        # transitive NuGet packages, rather than scanning compiled output only.
+        shell: pwsh
+        run: |
+          .\trivy-bin\trivy.exe fs `
+            --format cyclonedx `
+            --output sbom-windows.cdx.json `
+            --scanners vuln,license `
+            src/
+
+      # Dependency Tracker currently supports SBOM up to CycloneDX 1.6
+      - name: Waterstons Dependency Tracker (Windows)
+        shell: pwsh
+        run: |
+          $safe_version = "$env:VERSION" -replace '[^A-Za-z0-9._-]', '-' -replace '^-+|-+$', ''
+          curl -X POST ${{ secrets.DTRACK_URL }} `
+            -H "X-Api-Key: ${{ secrets.DTRACK_API_KEY }}" `
+            -F "autoCreate=true" `
+            -F "projectName=${{ github.event.repository.name }}-windows" `
+            -F "projectVersion=${safe_version}" `
+            -F "parentName=${{ vars.DTRACK_SYSLOGRELAY_PARENT_PROJ }}" `
+            -F "projectTags=${{ vars.DTRACK_COMMON_TAGS }}" `
+            -F "bom=@sbom-windows.cdx.json"
+
+      - name: Upload Windows assets to pre-release
+        shell: pwsh
+        run: |
+          $assets = Get-ChildItem releases\* -Include '*.nupkg', '*.msi', '*.exe' -File
+          gh release upload "v$env:VERSION" $($assets.FullName) sbom-windows.cdx.json --clobber
+
+      - name: Remove runner IP from Key Vault firewall
+        if: always()
+        shell: pwsh
+        run: |
+          az keyvault network-rule remove `
+            --name ${{ secrets.SIGNING_KEYVAULT_NAME }} `
+            --ip-address "$env:RUNNER_IP"
+          Write-Host "Removed $env:RUNNER_IP from Key Vault firewall"

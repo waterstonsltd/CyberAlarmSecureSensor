@@ -1,0 +1,36 @@
+{
+  "name": "Sophos XG",
+  "priority": 90,
+  "parserClass": "KeyValueParser",
+  "parserConfig": {
+    "useRegex": true,
+    "sourceIpKeys": ["src_ip"],
+    "destinationIpKeys": ["dst_ip"],
+    "sourcePortKeys": ["src_port"],
+    "isSourcePortOptional": true,
+    "destinationPortKeys": ["dst_port"],
+    "isDestinationPortOptional": true,
+    "protocolKeys": ["protocol"],
+    "actionKeys": ["status", "log_subtype"],
+    "allowActionValues": ["accept", "allow", "allowed"],
+    "denyActionValues": ["block", "blocked", "denied", "deny", "detect"],
+    "dropActionValues": ["drop", "dropped"],
+    "closeActionValues": ["close"],
+    "resetActionValues": ["reset"],
+    "timeoutActionValues": ["timeout"],
+    "durationKeys": ["duration"],
+    "durationIsSeconds": true,
+    "sentBytesKeys": ["bytes_sent"],
+    "receivedBytesKeys": ["bytes_received"]
+  },
+  "rules": [
+    { "type": "ContainsAll", "values": ["log_type="] },
+    { "type": "ContainsAny", "values": ["device=\"SFW\"", "device_name=\"SFW\"", "device_model=\"SF"] },
+    { "type": "MustNotContain", "values": ["sys=\"SecureNet\""] }
+  ],
+  "ignoreIfContaining": [
+    "log_type=\"System Health\"",
+    "log_type=\"Event\"",
+    "log_subtype=\"Do not decrypt\""
+  ]
+}
