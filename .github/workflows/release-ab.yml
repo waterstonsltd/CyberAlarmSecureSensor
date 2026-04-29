@@ -253,6 +253,15 @@ jobs:
           Write-Host "Added $ip to Key Vault firewall, waiting for propagation..."
           Start-Sleep -Seconds 10
 
+      - name: Verify Key Vault visibility
+        shell: pwsh
+        run: |
+          az keyvault show `
+            --name ${{ secrets.SIGNING_KEYVAULT_NAME }} `
+            --subscription ${{ secrets.SIGNING_SUBSCRIPTION_ID }} `
+            --query "{Name:name, RG:resourceGroup}" `
+            -o table
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
