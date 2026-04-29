@@ -234,6 +234,13 @@ jobs:
           tenant-id: ${{ secrets.SIGNING_TENANT_ID }}
           subscription-id: 89ee8660-2a38-45f7-a4ab-eca3fbcf844b
 
+      - name: Diagnose Azure context
+        shell: pwsh
+        run: |
+          az account show
+          az account list --query "[].{Name:name, ID:id, State:state}" -o table
+          az keyvault list --subscription ${{ secrets.SIGNING_SUBSCRIPTION_ID }} --query "[].name" -o tsv
+
       - name: Open Key Vault firewall for runner IP
         shell: pwsh
         run: |
