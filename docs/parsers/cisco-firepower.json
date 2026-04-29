@@ -1,0 +1,70 @@
+{
+	"name": "Cisco Firepower",
+	"priority": 100,
+	"parserClass": "KeyValueParser",
+	"parserConfig": {
+		"regexPatternOverride": "(\\w+):\\s+(?:\"([^\"]*)\"|([^,\\s]+))",
+		"sourceIpKeys": [
+			"SrcIP"
+		],
+		"destinationIpKeys": [
+			"DstIP"
+		],
+		"sourcePortKeys": [
+			"SrcPort"
+		],
+		"destinationPortKeys": [
+			"DstPort"
+		],
+		"protocolKeys": [
+			"Protocol"
+		],
+		"actionKeys": [
+			"AccessControlRuleAction"
+		],
+		"allowActionValues": [
+			"Allow"
+		],
+		"denyActionValues": [
+			"Block"
+		],
+		"dropActionValues": [],
+		"durationKeys": [
+			"ConnectionDuration"
+		],
+		"durationIsSeconds": true,
+		"sentBytesKeys": [
+			"InitiatorBytes"
+		],
+		"receivedBytesKeys": [
+			"ResponderBytes"
+		],
+		"isSourcePortOptional": false,
+		"isDestinationPortOptional": false
+	},
+	"rules": [
+		{
+			"type": "ContainsAny",
+			"values": [
+				"%FTD-",
+				"%NGIPS-"
+			]
+		},
+		{
+			"type": "ContainsAll",
+			"values": [
+				"AccessControlRuleAction:"
+			]
+		},
+		{
+			"type": "MustNotContain",
+			"values": [
+				"%ASA-",
+				"%FWSM-",
+				"%PIX-",
+				"CEF:"
+			]
+		}
+	],
+	"ignoreIfContaining": []
+}
