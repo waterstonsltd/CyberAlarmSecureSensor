@@ -1,0 +1,10 @@
+{
+  "name": "pfSense",
+  "priority": 90,
+  "parserClass": "PfSenseParser",
+  "parserConfig": null,
+  "rules": [
+    { "type": "ContainsAll", "values": [ "filterlog" ] },
+    { "type": "ContainsAny", "values": [ ",match,pass,", ",match,block,", ",match,reject," ] }
+  ]
+}
