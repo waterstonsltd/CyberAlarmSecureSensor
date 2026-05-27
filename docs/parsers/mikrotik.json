@@ -1,0 +1,10 @@
+{
+  "name": "Mikrotik",
+  "priority": 90,
+  "parserClass": "MikrotikParser",
+  "parserConfig": null,
+  "rules": [
+    { "type": "ContainsAll", "values": [ "firewall,", "connection-state:" ] },
+    { "type": "ContainsAny", "values": [ "in:", "out:" ] }
+  ]
+}
