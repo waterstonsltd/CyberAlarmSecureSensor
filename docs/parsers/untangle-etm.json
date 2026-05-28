@@ -1,0 +1,27 @@
+{
+  "name": "Untangle ETM",
+  "priority": 90,
+  "parserClass": "UntangleParser",
+  "parserConfig": null,
+  "rules": [
+    {
+      "type": "ContainsAny",
+      "values": [
+        "\"class\":\"class com.untangle.",
+        " uvm"
+      ]
+    }
+  ],
+  "ignoreIfContaining": [
+    "com.untangle.app.firewall.FirewallEvent",
+    "com.untangle.app.threat_prevention.ThreatPreventionEvent",
+    "com.untangle.app.http.HttpResponseEvent",
+    "com.untangle.uvm.app.SessionMinuteEvent",
+    "com.untangle.uvm.app.SessionStatsEvent",
+    "com.untangle.app.intrusion_prevention.IntrusionPreventionLogEvent",
+    "com.untangle.uvm.logging.InterfaceStatEvent",
+    "com.untangle.uvm.logging.SystemStatEvent",
+    "com.untangle.uvm.DeviceTableEvent",
+    "com.untangle.uvm.HostTableEvent"
+  ]
+}
