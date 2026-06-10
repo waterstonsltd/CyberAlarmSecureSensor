@@ -1,0 +1,6 @@
+Total=1262616
+Status=Success;Count=822179;Pct=65.12
+Status=LocalOnlyEvent;Count=427924;Pct=33.89
+Status=UnableToParse;Count=12513;Pct=0.99
+Pattern=Cisco Firepower (ASA-style);Count=1262616
+NullParseResult=0
