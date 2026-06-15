@@ -1,0 +1,28 @@
+{
+  "name": "SonicWall",
+  "priority": 95,
+  "parserClass": "SonicWallParser",
+  "parserConfig": {
+    "dropActionValues": ["drop"],
+    "denyActionValues": ["deny", "block"],
+    "allowActionValues": ["allow"],
+    "receivedBytesKeys": ["rcvd"]
+  },
+  "rules": [
+    { "type": "ContainsAll", "values": ["id=", "sn=", "fw=", "fw_action="] }
+  ],
+  "ignoreIfContaining": [
+    " m=307 ",
+    " m=427 ",
+    " m=585 ",
+    " m=586 ",
+    " m=766 ",
+    " m=1100 ",
+    " m=1325 ",
+    " m=1326 ",
+    " m=1369 ",
+    " m=1370 ",
+    " m=1371 ",
+    " m=1796 "
+  ]
+}
