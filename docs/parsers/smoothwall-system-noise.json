@@ -1,0 +1,30 @@
+{
+  "name": "Smoothwall System Noise",
+  "priority": 10,
+  "parserClass": "NullParser",
+  "parserConfig": null,
+  "rules": [
+    {
+      "type": "ContainsAny",
+      "values": [
+        "smoothwall[",
+        "autoquery.pl:",
+        "smoothwall sudo:",
+        "pam_unix(sudo:session)"
+      ]
+    },
+    {
+      "type": "MustNotContain",
+      "values": [
+        "firewall:",
+        "kernel:"
+      ]
+    }
+  ],
+  "ignoreIfContaining": [
+    "smoothwall[",
+    "autoquery.pl:",
+    "smoothwall sudo:",
+    "pam_unix(sudo:session)"
+  ]
+}
