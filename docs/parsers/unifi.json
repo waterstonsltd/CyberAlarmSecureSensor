@@ -1,0 +1,72 @@
+{
+  "name": "UniFi",
+  "priority": 90,
+  "parserClass": "UniFiParser",
+  "parserConfig": {
+    "sourceIpKeys": [
+      "SRC"
+    ],
+    "destinationIpKeys": [
+      "DST"
+    ],
+    "sourcePortKeys": [
+      "SPT"
+    ],
+    "destinationPortKeys": [
+      "DPT"
+    ],
+    "protocolKeys": [
+      "PROTO"
+    ],
+    "actionKeys": [],
+    "isSourcePortOptional": true,
+    "isDestinationPortOptional": true,
+    "allowActionValues": [
+      "A",
+      "DNAT"
+    ],
+    "denyActionValues": [
+      "D"
+    ]
+  },
+  "rules": [
+    {
+      "type": "ContainsAll",
+      "values": [
+        "SRC=",
+        "DST="
+      ]
+    },
+    {
+      "type": "ContainsAny",
+      "values": [
+        "[WAN_IN-",
+        "[WAN_OUT-",
+        "[WAN_LOCAL-",
+        "[LAN_IN-",
+        "[LAN_OUT-",
+        "[LAN_LOCAL-",
+        "[GUEST_IN-",
+        "[GUEST_OUT-",
+        "[GUEST_LOCAL-",
+        "[CUSTOM1_WAN-",
+        "[CUSTOM2_WAN-",
+        "[PREROUTING-DNAT-",
+        "_WAN_IN-",
+        "_WAN_OUT-",
+        "_WAN_LOCAL-",
+        "_WAN-",
+        "_LOCAL-",
+        "_IN-",
+        "_OUT-"
+      ]
+    },
+    {
+      "type": "MustNotContain",
+      "values": [
+        "CEF:"
+      ]
+    }
+  ],
+  "ignoreIfContaining": []
+}

@@ -1,0 +1,26 @@
+{
+	"name": "Cisco Firepower (ASA-style)",
+	"priority": 99,
+	"parserClass": "CiscoFirepowerAsaStyleParser",
+	"parserConfig": null,
+	"rules": [
+		{
+			"type": "ContainsAny",
+			"values": [
+				"%FTD-",
+				"%NGIPS-"
+			]
+		},
+		{
+			"type": "MustNotContain",
+			"values": [
+				"%ASA-",
+				"%FWSM-",
+				"%PIX-",
+				"CEF:",
+				"AccessControlRuleAction:"
+			]
+		}
+	],
+	"ignoreIfContaining": []
+}

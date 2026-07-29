@@ -1,0 +1,25 @@
+{
+  "name": "Sophos UTM",
+  "priority": 90,
+  "parserClass": "KeyValueParser",
+  "parserConfig": {
+    "useRegex": true,
+    "sourceIpKeys": ["srcip"],
+    "destinationIpKeys": ["dstip"],
+    "sourcePortKeys": ["srcport"],
+    "isSourcePortOptional": true,
+    "destinationPortKeys": ["dstport"],
+    "isDestinationPortOptional": true,
+    "protocolKeys": ["proto"],
+    "actionKeys": ["action"],
+    "allowActionValues": ["accept", "alert", "DNS request", "log"],
+    "denyActionValues": ["ICMP flood", "reject", "SYN flood", "UDP flood"],
+    "dropActionValues": ["drop"]
+  },
+  "rules": [
+    { "type": "ContainsAll", "values": ["sys=\"SecureNet\""] },
+    { "type": "ContainsAny", "values": ["sub=\"packetfilter\"", "sub=\"ips\""] },
+    { "type": "MustNotContain", "values": ["device=\"SFW\""] }
+  ],
+  "ignoreIfContaining": []
+}
