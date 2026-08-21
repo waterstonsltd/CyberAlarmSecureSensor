@@ -1,0 +1,23 @@
+{
+  "name": "PaloAlto_CEF",
+  "priority": 95,
+  "parserClass": "CefParser",
+  "parserConfig": {
+    "sourceIpKeys": ["src"],
+    "destinationIpKeys": ["dst"],
+    "sourcePortKeys": ["spt"],
+    "isSourcePortOptional": true,
+    "destinationPortKeys": ["dpt"],
+    "isDestinationPortOptional": true,
+    "protocolKeys": ["proto"],
+    "isProtocolOptional": true,
+    "actionKeys": ["act"],
+    "allowActionValues": ["allow"],
+    "denyActionValues": ["deny", "reset-client", "reset-server", "reset-both"],
+    "dropActionValues": ["drop"]
+  },
+  "rules": [
+    { "type": "ContainsAll", "values": ["CEF:", "|Palo Alto Networks|PAN-OS|"] },
+    { "type": "ContainsAny", "values": ["|TRAFFIC|", "|THREAT|"] }
+  ]
+}

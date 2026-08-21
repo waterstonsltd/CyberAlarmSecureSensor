@@ -1,0 +1,43 @@
+{
+  "name": "Smoothwall",
+  "priority": 97,
+  "parserClass": "SmoothwallParser",
+  "parserConfig": {
+    "sourceIpKeys": [ "SRC" ],
+    "destinationIpKeys": [ "DST" ],
+    "sourcePortKeys": [ "SPT" ],
+    "isSourcePortOptional": true,
+    "destinationPortKeys": [ "DPT" ],
+    "isDestinationPortOptional": true,
+    "protocolKeys": [ "PROTO" ],
+    "actionKeys": [],
+    "allowActionValues": [ "ACCEPT" ],
+    "denyActionValues": [ "REJECT" ],
+    "dropActionValues": [ "DROP" ]
+  },
+  "rules": [
+    {
+      "type": "ContainsAll",
+      "values": [ "kernel:" ]
+    },
+    {
+      "type": "ContainsAny",
+      "values": [
+        "DROP_FORWARD",
+        "ACCEPT_FORWARD",
+        "REJECT_FORWARD",
+        "DROP_INPUT",
+        "ACCEPT_INPUT",
+        "REJECT_INPUT",
+        "DROP_OUTPUT",
+        "ACCEPT_OUTPUT",
+        "REJECT_OUTPUT"
+      ]
+    },
+    {
+      "type": "MustNotContain",
+      "values": [ "Shorewall:", "snort[" ]
+    }
+  ],
+  "ignoreIfContaining": []
+}

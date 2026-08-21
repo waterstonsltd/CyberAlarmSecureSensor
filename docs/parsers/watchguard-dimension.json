@@ -1,0 +1,51 @@
+{
+  "name": "WatchGuard Dimension",
+  "priority": 95,
+  "parserClass": "WatchGuardDimensionParser",
+  "parserConfig": {
+    "allowActionValues": [
+      "Allow"
+    ],
+    "denyActionValues": [
+      "Deny"
+    ],
+    "durationKeys": [
+      "duration"
+    ],
+    "durationIsSeconds": true,
+    "sentBytesKeys": [
+      "sent_bytes"
+    ],
+    "receivedBytesKeys": [
+      "rcvd_bytes"
+    ]
+  },
+  "rules": [
+    {
+      "type": "ContainsAny",
+      "values": [
+        " Allow ",
+        " Deny "
+      ]
+    },
+    {
+      "type": "ContainsAny",
+      "values": [
+        "DNS/udp",
+        "DNS/tcp",
+        "HTTP/tcp",
+        "HTTPS/tcp",
+        "FTP/tcp",
+        "SMTP/tcp",
+        "POP3/tcp",
+        "IMAP/tcp",
+        "TCP/tcp",
+        "UDP/udp",
+        "ICMP/icmp",
+        "/tcp",
+        "/udp"
+      ]
+    }
+  ],
+  "ignoreIfContaining": []
+}

@@ -1,0 +1,54 @@
+{
+  "name": "ExaCube FarOS",
+  "priority": 90,
+  "parserClass": "LinuxNetfilterParser",
+  "parserConfig": {
+    "sourceIpKeys": [
+      "SRC"
+    ],
+    "destinationIpKeys": [
+      "DST"
+    ],
+    "sourcePortKeys": [
+      "SPT"
+    ],
+    "destinationPortKeys": [
+      "DPT"
+    ],
+    "protocolKeys": [
+      "PROTO"
+    ],
+    "actionKeys": [],
+    "isSourcePortOptional": true,
+    "isDestinationPortOptional": true,
+    "allowActionValues": [
+      "A",
+      "NAT",
+      "DNAT"
+    ],
+    "denyActionValues": [
+      "D"
+    ],
+    "actionExtractRegex": "\\[[^\\]\\s]+-([A-Z]+)(?:-\\d+)?\\]",
+    "actionCaptureGroup": 1
+  },
+  "rules": [
+    {
+      "type": "ContainsAll",
+      "values": [
+        "kernel: [",
+        "SRC=",
+        "DST="
+      ]
+    },
+    {
+      "type": "ContainsAny",
+      "values": [
+        "[ipv4-INP-filter-default-",
+        "[ipv6-INP-filter-default-",
+        "[DST-NAT-"
+      ]
+    }
+  ],
+  "ignoreIfContaining": []
+}

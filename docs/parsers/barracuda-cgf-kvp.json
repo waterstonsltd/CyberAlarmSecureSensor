@@ -1,0 +1,19 @@
+{
+  "name": "Barracuda CloudGen (KVP)",
+  "priority": 95,
+  "parserClass": "BarracudaCgfKvpParser",
+  "parserConfig": null,
+  "rules": [
+    {
+      "type": "ContainsAll",
+      "values": [ "box_Firewall_Activity:", "srcIP=" ]
+    }
+  ],
+  "ignoreIfContaining": [
+    "type=LOUT|",
+    "type=LB|",
+    "type=LRD|",
+    "type=PXY|",
+    "type=TAP|"
+  ]
+}

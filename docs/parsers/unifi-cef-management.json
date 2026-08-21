@@ -1,0 +1,18 @@
+{
+  "name": "UniFi CEF Management",
+  "priority": 95,
+  "parserClass": "NullParser",
+  "parserConfig": null,
+  "rules": [
+    {
+      "type": "ContainsAll",
+      "values": [
+        "CEF:",
+        "Ubiquiti"
+      ]
+    }
+  ],
+  "ignoreIfContaining": [
+    "CEF:"
+  ]
+}

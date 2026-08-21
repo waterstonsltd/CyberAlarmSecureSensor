@@ -1,0 +1,29 @@
+{
+	"name": "Cisco Meraki",
+	"priority": 95,
+	"parserClass": "MerakiParser",
+	"parserConfig": null,
+	"rules": [
+		{
+			"type": "ContainsAny",
+			"values": [
+				"ip_flow_start",
+				"ip_flow_end",
+				" flows ",
+				" firewall ",
+				" vpn_firewall ",
+				" cellular_firewall ",
+				" bridge_anyconnect_client_vpn_firewall "
+			]
+		},
+		{
+			"type": "ContainsAll",
+			"values": [
+				"src=",
+				"dst=",
+				"protocol="
+			]
+		}
+	],
+	"ignoreIfContaining": []
+}
