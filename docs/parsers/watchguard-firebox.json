@@ -1,0 +1,40 @@
+{
+  "name": "WatchGuard Firebox",
+  "priority": 96,
+  "parserClass": "WatchGuardFireboxParser",
+  "parserConfig": {
+    "allowActionValues": [
+      "Allow"
+    ],
+    "denyActionValues": [
+      "Deny"
+    ],
+    "durationKeys": [
+      "duration"
+    ],
+    "durationIsSeconds": true,
+    "sentBytesKeys": [
+      "sent_bytes"
+    ],
+    "receivedBytesKeys": [
+      "rcvd_bytes"
+    ]
+  },
+  "rules": [
+    {
+      "type": "ContainsAll",
+      "values": [
+        "firewall:",
+        "msg_id=\"3000-"
+      ]
+    },
+    {
+      "type": "ContainsAny",
+      "values": [
+        " Allow ",
+        " Deny "
+      ]
+    }
+  ],
+  "ignoreIfContaining": []
+}

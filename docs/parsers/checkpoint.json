@@ -1,0 +1,66 @@
+{
+	"name": "Check Point",
+	"priority": 100,
+	"parserClass": "KeyValueParser",
+	"parserConfig": {
+		"useRegex": true,
+		"regexPatternOverride": "(\\w+):\\s*(?:\"([^\"]*)\"|([^;\\]\\s]+))",
+		"sourceIpKeys": [
+			"src"
+		],
+		"destinationIpKeys": [
+			"dst"
+		],
+		"sourcePortKeys": [
+			"s_port"
+		],
+		"destinationPortKeys": [
+			"service"
+		],
+		"protocolKeys": [
+			"proto"
+		],
+		"actionKeys": [
+			"action",
+			"rule_action"
+		],
+		"allowActionValues": [
+			"Accept"
+		],
+		"denyActionValues": [
+			"Prevent",
+			"Reject"
+		],
+		"dropActionValues": [
+			"Drop"
+		],
+		"closeActionValues": [],
+		"resetActionValues": [],
+		"timeoutActionValues": [],
+		"durationKeys": [
+			"duration"
+		],
+		"durationIsSeconds": true,
+		"totalBytesKeys": [
+			"bytes"
+		],
+		"isSourcePortOptional": true,
+		"isDestinationPortOptional": true
+	},
+	"rules": [
+		{
+			"type": "ContainsAll",
+			"values": [
+				"CheckPoint",
+				"action:\""
+			]
+		},
+		{
+			"type": "MustNotContain",
+			"values": [
+				"CEF:"
+			]
+		}
+	],
+	"ignoreIfContaining": []
+}

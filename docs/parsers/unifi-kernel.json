@@ -1,0 +1,30 @@
+{
+  "name": "UniFi Kernel",
+  "priority": 95,
+  "parserClass": "NullParser",
+  "parserConfig": null,
+  "rules": [
+    {
+      "type": "ContainsAll",
+      "values": [
+        "kernel: ["
+      ]
+    },
+    {
+      "type": "ContainsAny",
+      "values": [
+        ",U6-",
+        ",UAP-",
+        ",US-",
+        ",USW-",
+        ",UDM-",
+        ",UXG-",
+        ",UGW-",
+        ",UCK-"
+      ]
+    }
+  ],
+  "ignoreIfContaining": [
+    "kernel: ["
+  ]
+}

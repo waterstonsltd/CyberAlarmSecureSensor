@@ -1,0 +1,101 @@
+name: Promote to Stable
+
+on:
+  release:
+    types: [released]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: waterstonsltd/cyberalarm-securesensor
+  # VERSION is set dynamically in the 'Resolve version' step via $GITHUB_ENV,
+  # stripping any leading 'v' from the tag (e.g. v1.0.5 → 1.0.5).
+  VERSION: ""
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment: stable
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Resolve version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "Resolved version: ${VERSION}"
+
+      - name: Validate version format
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version format: '$VERSION' - expected x.y.z"
+            exit 1
+          fi
+          echo "Version format valid: $VERSION v"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate version exists in registry
+        run: |
+          if ! ERROR=$(docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$VERSION 2>&1); then
+            echo "Error: Version $VERSION does not exist in the registry"
+            echo "Details: $ERROR"
+            exit 1
+          fi
+          echo "Version $VERSION found in registry ✓"
+
+      - name: Promote version to stable
+        run: |
+          docker buildx imagetools create \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:stable \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$VERSION
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign the stable tag
+        run: |
+          cosign sign --yes \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:stable
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Notify CyberAlarm version updater
+        run: |
+          TOKEN=$(az account get-access-token \
+            --resource api://${{ secrets.AZURE_CLIENT_ID }} \
+            --query accessToken -o tsv)
+          PAYLOAD="{\"event_type\": \"new-stable-version-created\", \"version\": \"$VERSION\"}"
+          FAILED=0
+
+          echo "Notifying CI"
+          curl --fail -X POST ${{ vars.VERSION_UPDATER_URL_CI }} \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" || { echo "CI notification failed"; FAILED=1; }
+
+          echo "Notifying UAT"
+          curl --fail -X POST ${{ vars.VERSION_UPDATER_URL_UAT }} \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" || { echo "UAT notification failed"; FAILED=1; }
+
+          echo "Notifying PRD"
+          curl --fail -X POST ${{ vars.VERSION_UPDATER_URL_PRD }} \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" || { echo "PRD notification failed"; FAILED=1; }
+
+          exit $FAILED

@@ -1,0 +1,33 @@
+{
+  "name": "Smoothwall Firewall JSON",
+  "priority": 96,
+  "parserClass": "JsonParser",
+  "parserConfig": {
+    "jsonStartToken": "firewall: ",
+    "protocolIsNumber": true,
+    "sourceIpKeys": [ "src" ],
+    "destinationIpKeys": [ "dst" ],
+    "sourcePortKeys": [ "spt" ],
+    "isSourcePortOptional": true,
+    "destinationPortKeys": [ "dpt" ],
+    "isDestinationPortOptional": true,
+    "protocolKeys": [ "proto" ],
+    "isProtocolOptional": true,
+    "actionKeys": [ "action" ],
+    "isActionOptional": true,
+    "allowActionValues": [ "accept" ],
+    "denyActionValues": [ "reject" ],
+    "dropActionValues": [ "drop" ]
+  },
+  "rules": [
+    {
+      "type": "ContainsAll",
+      "values": [ "firewall: {" ]
+    },
+    {
+      "type": "MustNotContain",
+      "values": [ "kernel:" ]
+    }
+  ],
+  "ignoreIfContaining": []
+}

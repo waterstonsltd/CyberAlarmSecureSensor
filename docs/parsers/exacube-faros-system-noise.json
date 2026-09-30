@@ -1,0 +1,25 @@
+{
+  "name": "ExaCube FarOS System Noise",
+  "priority": 95,
+  "parserClass": "NullParser",
+  "parserConfig": null,
+  "rules": [
+    {
+      "type": "ContainsAny",
+      "values": [
+        "charon-systemd[",
+        "netdata["
+      ]
+    },
+    {
+      "type": "MustNotContain",
+      "values": [
+        "SRC=",
+        "DST="
+      ]
+    }
+  ],
+  "ignoreIfContaining": [
+    "charon-systemd["
+  ]
+}

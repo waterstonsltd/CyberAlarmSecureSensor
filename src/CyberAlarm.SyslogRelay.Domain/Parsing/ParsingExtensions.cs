@@ -1,0 +1,153 @@
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using CyberAlarm.SyslogRelay.Common.Models;
+
+namespace CyberAlarm.SyslogRelay.Domain.Parsing;
+
+[SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Ok for extension methods.")]
+internal static partial class ParsingExtensions
+{
+    extension(Dictionary<string, string> keyValues)
+    {
+        public bool TryGetValueFrom(string[] keys, [MaybeNullWhen(false)] out string value)
+        {
+            value = null;
+
+            foreach (var key in keys ?? [])
+            {
+                if (keyValues.TryGetValue(key, out value))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public TimeSpan? ExtractDuration(string[] durationKeys, bool durationIsSeconds)
+        {
+            if (durationKeys.Length == 0 || !keyValues.TryGetValueFrom(durationKeys, out var durationValue))
+            {
+                return null;
+            }
+
+            if (durationIsSeconds && long.TryParse(durationValue, out var seconds))
+            {
+                return TimeSpan.FromSeconds(seconds);
+            }
+
+            return durationValue.ToDuration();
+        }
+
+        public long? ExtractBytes(string[] totalBytesKeys, string[] sentBytesKeys, string[] receivedBytesKeys)
+        {
+            keyValues.TryGetValueFrom(totalBytesKeys, out var totalBytesValue);
+            keyValues.TryGetValueFrom(sentBytesKeys, out var sentBytesValue);
+            keyValues.TryGetValueFrom(receivedBytesKeys, out var receivedBytesValue);
+
+            var total = totalBytesValue.ToLong();
+            var sent = sentBytesValue.ToLong();
+            var received = receivedBytesValue.ToLong();
+
+            if (total.HasValue)
+            {
+                return total;
+            }
+
+            if (sent.HasValue || received.HasValue)
+            {
+                return (sent ?? 0) + (received ?? 0);
+            }
+
+            return null;
+        }
+    }
+
+    extension(object? config)
+    {
+        public T? ParseConfig<T>()
+        {
+            if (config is JsonElement configElement)
+            {
+                return configElement.Deserialize<T>(SerializationOptions.ParserConfig);
+            }
+            else if (config is T parsedConfig)
+            {
+                return parsedConfig;
+            }
+
+            return default;
+        }
+    }
+
+    extension(string log)
+    {
+        public Dictionary<string, string> ParseKeyValues(char pairDelimiter, char valueDelimiter)
+        {
+            return log
+                .Split(pairDelimiter, StringSplitOptions.RemoveEmptyEntries)
+                .Select(ToKeyValuePair)
+                .Where(x => x.HasValue)
+                .ToDictionary(x => x!.Value.Key, x => x!.Value.Value);
+
+            KeyValuePair<string, string>? ToKeyValuePair(string text)
+            {
+                var items = text.Split(valueDelimiter, StringSplitOptions.RemoveEmptyEntries);
+                return items.Length == 2 ? new(items[0].Trim(), items[1].Trim()) : null;
+            }
+        }
+
+        public Dictionary<string, string>? ParseKeyValues(Dictionary<string, string> keyValues, Regex? regex = default)
+        {
+            ArgumentNullException.ThrowIfNull(keyValues);
+
+            regex ??= DefaultKeyValueRegex();
+
+            var matches = regex.Matches(log);
+            if (matches.Count == 0)
+            {
+                return null;
+            }
+
+            foreach (Match match in matches)
+            {
+                var key = match.Groups[1].Value;
+                var value = match.Groups[2].Success ? match.Groups[2].Value : match.Groups[3].Value;
+                keyValues[key] = value;
+            }
+
+            return keyValues;
+        }
+    }
+
+    extension(string? value)
+    {
+        public int? ToPort() =>
+            int.TryParse(value, out var port) ? port : null;
+
+        public long? ToLong() =>
+            long.TryParse(value, out var result) ? result : null;
+
+        public TimeSpan? ToDuration() =>
+            TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var duration) ? duration : null;
+
+        public EventProtocol ToProtocol() =>
+            Enum.TryParse<EventProtocol>(value, true, out var protocol) && Enum.IsDefined(protocol)
+            ? protocol
+            : EventProtocol.Unknown;
+    }
+
+    extension(Match match)
+    {
+        public string From(string groupKey) =>
+            match.Groups[groupKey].Value;
+
+        public int? NumberFrom(string groupKey) =>
+            int.TryParse(match.Groups[groupKey].ValueSpan, out var result) ? result : null;
+    }
+
+    [GeneratedRegex(@"(\w+)=(?:""([^""]*)""|(\S+))", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    internal static partial Regex DefaultKeyValueRegex();
+}

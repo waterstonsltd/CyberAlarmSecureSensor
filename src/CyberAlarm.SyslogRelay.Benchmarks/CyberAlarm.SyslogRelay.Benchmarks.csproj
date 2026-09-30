@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <PackageLicenseExpression>BUSL-1.1</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CyberAlarm.SyslogRelay.Domain\CyberAlarm.SyslogRelay.Domain.csproj" />
+    <ProjectReference Include="..\CyberAlarm.SyslogRelay.Common\CyberAlarm.SyslogRelay.Common.csproj" />
+    <ProjectReference Include="..\CyberAlarm.SyslogRelay.Tests.Common\CyberAlarm.SyslogRelay.Tests.Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\test-data\cisco-asa-local-test.log" CopyToOutputDirectory="PreserveNewest" Link="test-data\cisco-asa-local-test.log" Condition="Exists('..\..\test-data\cisco-asa-local-test.log')" />
+    <Content Include="..\..\test-data\sophos-utm-local-test.log" CopyToOutputDirectory="PreserveNewest" Link="test-data\sophos-utm-local-test.log" Condition="Exists('..\..\test-data\sophos-utm-local-test.log')" />
+    <Content Include="..\..\test-data\smoothwall-firewall-json-local-test.log" CopyToOutputDirectory="PreserveNewest" Link="test-data\smoothwall-firewall-json-local-test.log" Condition="Exists('..\..\test-data\smoothwall-firewall-json-local-test.log')" />
+  </ItemGroup>
+
+</Project>

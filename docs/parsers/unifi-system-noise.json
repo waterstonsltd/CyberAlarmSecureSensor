@@ -1,0 +1,47 @@
+{
+  "name": "UniFi System Noise",
+  "priority": 95,
+  "parserClass": "NullParser",
+  "parserConfig": null,
+  "rules": [
+    {
+      "type": "ContainsAny",
+      "values": [
+        "hppe_",
+        "nss-dp ",
+        "ubios-udapi-server",
+        "ubnt-dpi",
+        "dpi-flow-stats",
+        "dnsAdBlock",
+        "ubnt-netmon",
+        "stahtd",
+        "wevent",
+        "libubnt",
+        "mcad",
+        "hostapd",
+        "dnsmasq"
+      ]
+    },
+    {
+      "type": "MustNotContain",
+      "values": [
+        "SRC="
+      ]
+    }
+  ],
+  "ignoreIfContaining": [
+    "hppe_",
+    "nss-dp ",
+    "ubios-udapi-server",
+    "ubnt-dpi",
+    "dpi-flow-stats",
+    "dnsAdBlock",
+    "ubnt-netmon",
+    "stahtd",
+    "wevent",
+    "libubnt",
+    "mcad",
+    "hostapd",
+    "dnsmasq"
+  ]
+}

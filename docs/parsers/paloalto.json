@@ -1,0 +1,24 @@
+{
+  "name": "PaloAlto",
+  "priority": 90,
+  "parserClass": "PaloAltoParser",
+  "parserConfig": null,
+  "rules": [
+    {
+      "type": "ContainsAny",
+      "values": [
+        ",TRAFFIC,start,",
+        ",TRAFFIC,end,",
+        ",TRAFFIC,drop,",
+        ",TRAFFIC,deny,",
+        ",THREAT,vulnerability,",
+        ",THREAT,spyware,",
+        ",THREAT,virus,",
+        ",THREAT,wildfire,",
+        ",THREAT,url,",
+        ",THREAT,data,",
+        ",THREAT,file,"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "Barracuda CloudGen Firewall",
+  "priority": 94,
+  "parserClass": "BarracudaCgfParser",
+  "parserConfig": null,
+  "rules": [
+    { "type": "ContainsAll", "values": [ "box_Firewall_Activity:" ] },
+    { "type": "MustNotContain", "values": [ "srcIP=" ] }
+  ],
+  "ignoreIfContaining": [
+    ": LOUT|",
+    ": LB|",
+    ": LRD|",
+    ": PXY|",
+    ": TAP|"
+  ]
+}
